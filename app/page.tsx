@@ -1,7 +1,9 @@
+import FileUploadForm from "./components/FileUploadForm";
+
 export default function Home() {
   return (
-    <div>
-      <div>Form</div>
+    <div className="flex justify-center items-center">
+      <FileUploadForm />
     </div>
   );
 }
