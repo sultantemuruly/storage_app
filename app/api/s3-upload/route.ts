@@ -23,7 +23,7 @@ async function uploadFileToS3(file: Buffer, fileName: string): Promise<string> {
 
   const params: UploadFileParams = {
     Bucket: process.env.AWS_S3_BUCKET_NAME,
-    Key: `${fileName}-${Date.now()}`,
+    Key: `imagegroup1/${fileName}`,
     Body: file,
     ContentType: "image/jpg",
   };
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "File is required" }, { status: 400 });
     }
 
-    // Validate file type if needed
+    // Validate file type
     if (!file.type.startsWith("image/")) {
       return NextResponse.json({ error: "Invalid file type" }, { status: 400 });
     }
