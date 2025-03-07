@@ -18,4 +18,18 @@ model User {
   clerkId String  @unique
   email   String  @unique
   name    String?
+
+  // Relation to Group (one user can have many groups)
+  groups Group[]
+}
+
+model Group {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relation to User (many groups can belong to one user)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @db.ObjectId
 }

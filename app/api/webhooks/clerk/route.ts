@@ -53,22 +53,32 @@ export async function POST(req: Request) {
     try {
       const { id, email_addresses, first_name, last_name } = evt.data;
 
-      await prisma.user.upsert({
-        where: { clerkId: id }, // Fixes Unique Constraint Error
-        update: {
-          email: email_addresses[0]?.email_address || "no-email@example.com",
-        },
-        create: {
-          clerkId: id,
-          email: email_addresses[0]?.email_address || "no-email@example.com",
-          name: first_name ? `${first_name} ${last_name || ""}` : null,
-        },
+      // Create user with a default group in a transaction
+      await prisma.$transaction(async (tx) => {
+        // Create user
+        const user = await tx.user.create({
+          data: {
+            clerkId: id,
+            email: email_addresses[0]?.email_address || "no-email@example.com",
+            name: first_name ? `${first_name} ${last_name || ""}` : null,
+          },
+        });
+
+        // Create a default group for the user
+        await tx.group.create({
+          data: {
+            name: "My First Group",
+            userId: user.id,
+          },
+        });
       });
 
-      console.log("User stored/updated successfully");
+      console.log("User and default group created successfully");
     } catch (dbError) {
       console.error("Database error:", dbError);
-      return new Response("Error: Failed to save user", { status: 500 });
+      return new Response("Error: Failed to save user and group", {
+        status: 500,
+      });
     }
   }
 
