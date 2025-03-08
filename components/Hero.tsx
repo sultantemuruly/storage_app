@@ -21,7 +21,7 @@ export default function Hero() {
               </p>
             </div>
             <div className="flex flex-col gap-2 min-[400px]:flex-row">
-              <Link href="/">
+              <Link href="/store">
                 <Button size="lg" className="gap-1.5">
                   Get Started
                   <ArrowRight className="h-4 w-4" />
