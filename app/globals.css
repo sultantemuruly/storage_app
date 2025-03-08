@@ -122,3 +122,11 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .container {
+    @apply w-full;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}

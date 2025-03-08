@@ -1,15 +1,9 @@
-import FileUploadForm from "./components/FileUploadForm";
-import GroupImages from "./components/GroupImages";
+import Hero from "@/components/Hero";
 
 export default function Home() {
-  const path = "imagegroup1/";
-
   return (
     <div className="flex flex-col justify-center items-center">
-      <div>Form</div>
-      <FileUploadForm />
-      <div>Images</div>
-      <GroupImages path={path} />
+      <Hero />
     </div>
   );
 }
