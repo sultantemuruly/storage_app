@@ -30,6 +30,6 @@ model Group {
   updatedAt DateTime @updatedAt
 
   // Relation to User (many groups can belong to one user)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String @db.ObjectId
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

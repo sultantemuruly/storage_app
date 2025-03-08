@@ -53,9 +53,8 @@ export async function POST(req: Request) {
     try {
       const { id, email_addresses, first_name, last_name } = evt.data;
 
-      // Create or update the user (maintaining the original upsert logic)
-      const user = await prisma.user.upsert({
-        where: { clerkId: id },
+      await prisma.user.upsert({
+        where: { clerkId: id }, // Fixes Unique Constraint Error
         update: {
           email: email_addresses[0]?.email_address || "no-email@example.com",
         },
@@ -66,18 +65,7 @@ export async function POST(req: Request) {
         },
       });
 
-      // Create a default group for new users
-      // This will only run for newly created users, not updates
-      if (user) {
-        await prisma.group.create({
-          data: {
-            name: "My First Group",
-            userId: user.id,
-          },
-        });
-      }
-
-      console.log("User stored/updated successfully with default group");
+      console.log("User stored/updated successfully");
     } catch (dbError) {
       console.error("Database error:", dbError);
       return new Response("Error: Failed to save user", { status: 500 });
