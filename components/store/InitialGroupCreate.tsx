@@ -8,7 +8,6 @@ import { Loader } from "lucide-react";
 interface Group {
   id: string;
   name: string;
-  imageCount: number;
 }
 
 interface InitialGroupCreateProps {
@@ -61,7 +60,6 @@ export default function InitialGroupCreate({
       const newGroup: Group = {
         id: data.group.id || "unknown-id",
         name: data.group.name || "Unnamed Group",
-        imageCount: data.group.imageCount ?? 0, // Ensure `imageCount` is a number
       };
 
       // Update groups correctly

@@ -10,12 +10,12 @@ import { Loader } from "lucide-react";
 interface Group {
   id: string;
   name: string;
-  imageCount: number;
 }
 
 export default function Store() {
   const { user, isLoaded } = useUser();
   const [groups, setGroups] = useState<Group[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,9 +27,14 @@ export default function Store() {
         if (res.ok) {
           const data = await res.json();
           setGroups(data.groups);
+
+          // Select the first group by default if it exists
+          if (data.groups && data.groups.length > 0) {
+            setSelectedGroup(data.groups[0].id);
+          }
         }
       } catch (error) {
-        console.error("Failed to fetch user:", error);
+        console.error("Failed to fetch groups:", error);
       } finally {
         setLoading(false);
       }
@@ -50,7 +55,12 @@ export default function Store() {
     <div className="flex w-screen bg-background">
       {groups.length > 0 ? (
         <div className="flex w-full">
-          <Sidebar />
+          <Sidebar
+            groups={groups}
+            selectedGroup={selectedGroup}
+            setSelectedGroup={setSelectedGroup}
+            setGroups={setGroups}
+          />
           <main className="flex-1 overflow-auto">
             <ImageGallery />
           </main>

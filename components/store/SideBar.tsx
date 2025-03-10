@@ -1,61 +1,95 @@
 "use client";
 
-import { useState } from "react";
-import { Grid, Image, Plus } from "lucide-react";
+import { Grid, Image, Plus, Loader } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import CreateGroupDialog from "./CreateGroupDialog";
+import { useState } from "react";
 
 interface Group {
   id: string;
   name: string;
-  imageCount: number;
 }
 
-export default function Sidebar() {
-  const [groups, setGroups] = useState<Group[]>([
-    { id: "1", name: "Vacation", imageCount: 24 },
-    { id: "2", name: "Work", imageCount: 15 },
-    { id: "3", name: "Family", imageCount: 32 },
-    { id: "4", name: "Projects", imageCount: 8 },
-  ]);
-  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
-  const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
+interface SidebarProps {
+  groups: Group[];
+  selectedGroup: string | null;
+  setSelectedGroup: (id: string | null) => void;
+  setGroups: (groups: Group[] | ((prevGroups: Group[]) => Group[])) => void;
+  loading?: boolean;
+}
 
-  const addGroup = (name: string) => {
-    const newGroup = {
-      id: Date.now().toString(),
-      name,
-      imageCount: 0,
-    };
-    setGroups([...groups, newGroup]);
+export default function Sidebar({
+  groups,
+  selectedGroup,
+  setSelectedGroup,
+  setGroups,
+  loading = false,
+}: SidebarProps) {
+  const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
+
+  const addGroup = async (name: string) => {
+    try {
+      setCreateLoading(true);
+      const response = await fetch("/api/user-groups", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create group");
+      }
+
+      const data = await response.json();
+
+      if (!data || !data.group || typeof data.group !== "object") {
+        throw new Error("Invalid API response structure");
+      }
+
+      // Ensure `data.group` has required fields with fallbacks
+      const newGroup: Group = {
+        id: data.group.id || "unknown-id",
+        name: data.group.name || "Unnamed Group",
+      };
+
+      // Update groups using the passed setter function
+      setGroups((prevGroups) => [...prevGroups, newGroup]);
+      setSelectedGroup(newGroup.id);
+    } catch (error) {
+      console.error("Error adding group:", error);
+    } finally {
+      setCreateLoading(false);
+    }
   };
 
   return (
     <>
       {/* Mobile Sidebar */}
-      <Sheet>
-        <SheetTrigger asChild>
-          <Button
-            variant="outline"
-            size="icon"
-            className="md:hidden absolute top-4 left-4 z-10"
-          >
-            <Grid className="h-5 w-5" />
-          </Button>
-        </SheetTrigger>
-        <SheetContent side="left" className="w-72 p-0">
-          <SidebarContent
-            groups={groups}
-            selectedGroup={selectedGroup}
-            setSelectedGroup={setSelectedGroup}
-            onCreateGroup={() => setIsCreateGroupOpen(true)}
-          />
-        </SheetContent>
-      </Sheet>
+      <div className="md:hidden fixed top-4 left-4 z-50">
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="outline" size="icon">
+              <Grid className="h-5 w-5" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-72 p-0">
+            <SidebarContent
+              groups={groups}
+              selectedGroup={selectedGroup}
+              setSelectedGroup={setSelectedGroup}
+              onCreateGroup={() => setIsCreateGroupOpen(true)}
+              loading={loading || createLoading}
+            />
+          </SheetContent>
+        </Sheet>
+      </div>
 
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-72 flex-col border-r bg-background">
@@ -64,6 +98,7 @@ export default function Sidebar() {
           selectedGroup={selectedGroup}
           setSelectedGroup={setSelectedGroup}
           onCreateGroup={() => setIsCreateGroupOpen(true)}
+          loading={loading || createLoading}
         />
       </aside>
 
@@ -81,6 +116,7 @@ interface SidebarContentProps {
   selectedGroup: string | null;
   setSelectedGroup: (id: string | null) => void;
   onCreateGroup: () => void;
+  loading: boolean;
 }
 
 function SidebarContent({
@@ -88,6 +124,7 @@ function SidebarContent({
   selectedGroup,
   setSelectedGroup,
   onCreateGroup,
+  loading,
 }: SidebarContentProps) {
   return (
     <div className="flex h-full flex-col">
@@ -98,8 +135,17 @@ function SidebarContent({
         <div className="p-4">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-medium">Groups</h3>
-            <Button variant="ghost" size="icon" onClick={onCreateGroup}>
-              <Plus className="h-4 w-4" />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onCreateGroup}
+              disabled={loading}
+            >
+              {loading ? (
+                <Loader className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
               <span className="sr-only">Add group</span>
             </Button>
           </div>
@@ -118,9 +164,6 @@ function SidebarContent({
                   <Image className="h-4 w-4" />
                   <span className="flex-1 truncate text-left">
                     {group.name}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {group.imageCount}
                   </span>
                 </Button>
               ))}
