@@ -1,11 +1,10 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-
 import type React from "react";
-
-import { useState } from "react";
-import { ImagePlus, Upload } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { ImagePlus, Upload, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,45 +18,72 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
-interface Group {
-  id: string;
-  name: string;
-}
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface UploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onUpload: (name: string, group?: string) => void;
-  groups: Group[];
+  onUpload: (name: string) => void;
 }
+
+type S3Image = {
+  url: string;
+  key: string;
+};
 
 export default function UploadDialog({
   open,
   onOpenChange,
   onUpload,
-  groups,
 }: UploadDialogProps) {
   const [imageName, setImageName] = useState("");
-  const [selectedGroup, setSelectedGroup] = useState<string | undefined>(
-    undefined
-  );
   const [isDragging, setIsDragging] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState<boolean>(false);
+  const [uploadedFiles, setUploadedFiles] = useState<Set<string>>(new Set());
+  const [showDuplicateAlert, setShowDuplicateAlert] = useState<boolean>(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (imageName.trim()) {
-      onUpload(imageName.trim(), selectedGroup);
-      setImageName("");
-      setSelectedGroup(undefined);
-      onOpenChange(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load existing files from S3 on component mount
+  useEffect(() => {
+    if (open) {
+      const fetchUploadedFiles = async () => {
+        try {
+          const response = await fetch("/api/s3-retrieve?path=imagegroup1/");
+          const data = await response.json();
+
+          if (data.images && Array.isArray(data.images)) {
+            const fileNames = new Set<string>(
+              data.images.map((image: S3Image) => {
+                const key = image.key as string;
+                return key.split("/").pop() || "";
+              })
+            );
+
+            setUploadedFiles(fileNames);
+          }
+        } catch (error) {
+          console.error("Error fetching uploaded files:", error);
+          toast.error("Failed to load existing files", {
+            description: "There was a problem connecting to the server.",
+          });
+        }
+      };
+
+      fetchUploadedFiles();
     }
+  }, [open]);
+
+  const checkDuplicate = (fileName: string): boolean => {
+    return uploadedFiles.has(fileName);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -73,87 +99,214 @@ export default function UploadDialog({
     e.preventDefault();
     setIsDragging(false);
 
-    // In a real app, you would handle file upload here
-    // For this demo, we'll just simulate it
     if (e.dataTransfer.files.length > 0) {
-      const file = e.dataTransfer.files[0];
-      if (file.type.startsWith("image/")) {
-        setImageName(file.name.split(".")[0]);
+      const droppedFile = e.dataTransfer.files[0];
+      if (droppedFile.type.startsWith("image/")) {
+        setFile(droppedFile);
+        setImageName(droppedFile.name.split(".")[0]);
       }
     }
   };
 
+  const handleFileSelect = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0] || null;
+    if (selectedFile) {
+      setFile(selectedFile);
+      setImageName(selectedFile.name.split(".")[0]);
+    }
+  };
+
+  const proceedWithUpload = async () => {
+    if (!file) return;
+
+    setUploading(true);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await fetch("/api/s3-upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to upload file");
+      }
+
+      const data = await response.json();
+      console.log(data.status);
+
+      toast.success("File uploaded successfully!", {
+        description: "Your file has been uploaded to the server.",
+      });
+
+      // Call the onUpload callback to inform parent component
+      onUpload(imageName);
+
+      // Reset form
+      setFile(null);
+      setImageName("");
+
+      // Close dialog
+      onOpenChange(false);
+
+      // Reload the page after successful upload
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500); // Small delay to allow the toast to be seen
+    } catch (error) {
+      toast.error("Upload failed. Please try again.", {
+        description: "There was an error uploading your file.",
+      });
+      console.error(error);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!file) {
+      toast.error("Please select a file before uploading.", {
+        description: "No file selected",
+      });
+      return;
+    }
+
+    if (!imageName.trim()) {
+      toast.error("Please enter an image name.", {
+        description: "Image name is required",
+      });
+      return;
+    }
+
+    // Check if file already exists
+    if (checkDuplicate(file.name)) {
+      setShowDuplicateAlert(true);
+      return;
+    }
+
+    proceedWithUpload();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>Upload image</DialogTitle>
-            <DialogDescription>
-              Upload a new image to your storage.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div
-              className={cn(
-                "flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-12 transition-colors",
-                isDragging
-                  ? "border-primary bg-primary/5"
-                  : "border-muted-foreground/25"
-              )}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-            >
-              <ImagePlus className="h-10 w-10 text-muted-foreground mb-4" />
-              <p className="text-sm text-muted-foreground text-center mb-2">
-                Drag and drop your image here, or click to browse
-              </p>
-              <Button type="button" variant="outline" size="sm">
-                Choose File
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[500px]">
+          <form onSubmit={handleSubmit}>
+            <DialogHeader>
+              <DialogTitle>Upload image</DialogTitle>
+              <DialogDescription>
+                Upload a new image to your storage.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div
+                className={cn(
+                  "flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-12 transition-colors",
+                  isDragging
+                    ? "border-primary bg-primary/5"
+                    : "border-muted-foreground/25"
+                )}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                {file ? (
+                  <div className="text-center">
+                    <ImagePlus className="h-10 w-10 mx-auto text-primary mb-2" />
+                    <p className="text-sm font-medium mb-1">{file.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {(file.size / 1024).toFixed(2)} KB
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <ImagePlus className="h-10 w-10 text-muted-foreground mb-4" />
+                    <p className="text-sm text-muted-foreground text-center mb-2">
+                      Drag and drop your image here, or click to browse
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleFileSelect}
+                    >
+                      Choose File
+                    </Button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleFileChange}
+                    />
+                  </>
+                )}
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="name">Image name</Label>
+                <Input
+                  id="name"
+                  placeholder="Enter image name"
+                  value={imageName}
+                  onChange={(e) => setImageName(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={uploading}
+              >
+                Cancel
               </Button>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="name">Image name</Label>
-              <Input
-                id="name"
-                placeholder="Enter image name"
-                value={imageName}
-                onChange={(e) => setImageName(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="group">Group (optional)</Label>
-              <Select value={selectedGroup} onValueChange={setSelectedGroup}>
-                <SelectTrigger id="group">
-                  <SelectValue placeholder="Select a group" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {groups.map((group) => (
-                    <SelectItem key={group.id} value={group.name}>
-                      {group.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={!imageName.trim()}>
-              <Upload className="mr-2 h-4 w-4" />
-              Upload
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+              <Button type="submit" disabled={!imageName.trim() || uploading}>
+                {uploading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="mr-2 h-4 w-4" />
+                    Upload
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Duplicate File Alert Dialog */}
+      <AlertDialog
+        open={showDuplicateAlert}
+        onOpenChange={setShowDuplicateAlert}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Duplicate File</AlertDialogTitle>
+            <AlertDialogDescription>
+              A file with the same name has already been uploaded. You cannot
+              upload the same file twice.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setShowDuplicateAlert(false)}>
+              Ok
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
