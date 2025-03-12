@@ -15,8 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,20 +28,12 @@ import {
 interface UploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onUpload: (name: string) => void;
 }
-
-type S3Image = {
-  url: string;
-  key: string;
-};
 
 export default function UploadDialog({
   open,
   onOpenChange,
-  onUpload,
 }: UploadDialogProps) {
-  const [imageName, setImageName] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState<boolean>(false);
@@ -57,14 +47,13 @@ export default function UploadDialog({
     if (open) {
       const fetchUploadedFiles = async () => {
         try {
-          const response = await fetch("/api/s3-retrieve?path=imagegroup1/");
+          const response = await fetch("/api/s3-retrieve?path=images/");
           const data = await response.json();
 
           if (data.images && Array.isArray(data.images)) {
             const fileNames = new Set<string>(
-              data.images.map((image: S3Image) => {
-                const key = image.key as string;
-                return key.split("/").pop() || "";
+              data.images.map((image: { key: string }) => {
+                return image.key.split("/").pop() || "";
               })
             );
 
@@ -82,18 +71,15 @@ export default function UploadDialog({
     }
   }, [open]);
 
-  const checkDuplicate = (fileName: string): boolean => {
-    return uploadedFiles.has(fileName);
-  };
+  const checkDuplicate = (fileName: string): boolean =>
+    uploadedFiles.has(fileName);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
   };
 
-  const handleDragLeave = () => {
-    setIsDragging(false);
-  };
+  const handleDragLeave = () => setIsDragging(false);
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -103,20 +89,16 @@ export default function UploadDialog({
       const droppedFile = e.dataTransfer.files[0];
       if (droppedFile.type.startsWith("image/")) {
         setFile(droppedFile);
-        setImageName(droppedFile.name.split(".")[0]);
       }
     }
   };
 
-  const handleFileSelect = () => {
-    fileInputRef.current?.click();
-  };
+  const handleFileSelect = () => fileInputRef.current?.click();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0] || null;
     if (selectedFile) {
       setFile(selectedFile);
-      setImageName(selectedFile.name.split(".")[0]);
     }
   };
 
@@ -138,19 +120,12 @@ export default function UploadDialog({
         throw new Error("Failed to upload file");
       }
 
-      const data = await response.json();
-      console.log(data.status);
-
       toast.success("File uploaded successfully!", {
         description: "Your file has been uploaded to the server.",
       });
 
-      // Call the onUpload callback to inform parent component
-      onUpload(imageName);
-
       // Reset form
       setFile(null);
-      setImageName("");
 
       // Close dialog
       onOpenChange(false);
@@ -158,7 +133,7 @@ export default function UploadDialog({
       // Reload the page after successful upload
       setTimeout(() => {
         window.location.reload();
-      }, 1500); // Small delay to allow the toast to be seen
+      }, 1500);
     } catch (error) {
       toast.error("Upload failed. Please try again.", {
         description: "There was an error uploading your file.",
@@ -175,13 +150,6 @@ export default function UploadDialog({
     if (!file) {
       toast.error("Please select a file before uploading.", {
         description: "No file selected",
-      });
-      return;
-    }
-
-    if (!imageName.trim()) {
-      toast.error("Please enter an image name.", {
-        description: "Image name is required",
       });
       return;
     }
@@ -250,15 +218,6 @@ export default function UploadDialog({
                   </>
                 )}
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="name">Image name</Label>
-                <Input
-                  id="name"
-                  placeholder="Enter image name"
-                  value={imageName}
-                  onChange={(e) => setImageName(e.target.value)}
-                />
-              </div>
             </div>
             <DialogFooter>
               <Button
@@ -269,7 +228,7 @@ export default function UploadDialog({
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={!imageName.trim() || uploading}>
+              <Button type="submit" disabled={!file || uploading}>
                 {uploading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -37,20 +37,28 @@ export async function GET(req: Request) {
       return NextResponse.json({ images: [] });
     }
 
-    // Generate presigned URLs for secure access
+    // Generate presigned URLs and extract metadata
     const imageUrls = await Promise.all(
       Contents.map(async (file) => {
+        const fileName = file.Key!.split("/").pop() || "Unknown"; // Extract file name
+        const lastModified = file.LastModified
+          ? new Date(file.LastModified).toISOString().split("T")[0]
+          : "Unknown"; // Extract last modified date
+
         const getObjectCommand = new GetObjectCommand({
           Bucket: process.env.AWS_S3_BUCKET_NAME,
           Key: file.Key!,
         });
 
         const signedUrl = await getSignedUrl(s3Client, getObjectCommand, {
-          expiresIn: 3600,
-        }); // 1-hour expiration
+          expiresIn: 3600, // 1-hour expiration
+        });
+
         return {
           url: signedUrl,
           key: file.Key,
+          name: fileName,
+          date: lastModified,
         };
       })
     );

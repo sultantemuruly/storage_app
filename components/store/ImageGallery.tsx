@@ -1,100 +1,56 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { ImagePlus, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import UploadDialog from "./UploadDialog";
+import { toast } from "sonner";
 
 interface ImageItem {
-  id: string;
   url: string;
   name: string;
-  group?: string;
   date: string;
+  key: string;
 }
 
 export default function ImageGallery() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [images, setImages] = useState<ImageItem[]>([
-    {
-      id: "1",
-      url: "/placeholder.svg?height=500&width=500",
-      name: "Image 1",
-      group: "Vacation",
-      date: "2023-05-15",
-    },
-    {
-      id: "2",
-      url: "/placeholder.svg?height=500&width=500",
-      name: "Image 2",
-      group: "Work",
-      date: "2023-06-22",
-    },
-    {
-      id: "3",
-      url: "/placeholder.svg?height=500&width=500",
-      name: "Image 3",
-      group: "Family",
-      date: "2023-07-10",
-    },
-    {
-      id: "4",
-      url: "/placeholder.svg?height=500&width=500",
-      name: "Image 4",
-      group: "Projects",
-      date: "2023-08-05",
-    },
-    {
-      id: "5",
-      url: "/placeholder.svg?height=500&width=500",
-      name: "Image 5",
-      group: "Vacation",
-      date: "2023-09-18",
-    },
-    {
-      id: "6",
-      url: "/placeholder.svg?height=500&width=500",
-      name: "Image 6",
-      group: "Work",
-      date: "2023-10-30",
-    },
-    {
-      id: "7",
-      url: "/placeholder.svg?height=500&width=500",
-      name: "Image 7",
-      date: "2023-11-12",
-    },
-    {
-      id: "8",
-      url: "/placeholder.svg?height=500&width=500",
-      name: "Image 8",
-      group: "Family",
-      date: "2023-12-25",
-    },
-  ]);
+  const [images, setImages] = useState<ImageItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredImages = images.filter(
-    (image) =>
-      image.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (image.group &&
-        image.group.toLowerCase().includes(searchQuery.toLowerCase()))
+  // Fetch images from S3 when component mounts
+  useEffect(() => {
+    async function fetchImages() {
+      try {
+        const response = await fetch(`/api/s3-retrieve?path=images/`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Failed to load images.");
+        }
+
+        setImages(data.images);
+      } catch (error) {
+        console.error("Error fetching images:", error);
+        toast.error("Failed to retrieve images from server.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchImages();
+  }, [isUploadOpen]); // Refetch images after upload
+
+  const filteredImages = images.filter((image) =>
+    image.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const addImage = (name: string, group?: string) => {
-    const newImage = {
-      id: Date.now().toString(),
-      url: "/placeholder.svg?height=500&width=500",
-      name,
-      group,
-      date: new Date().toISOString().split("T")[0],
-    };
-    setImages([newImage, ...images]);
-  };
+  const selectedImgData = images.find((img) => img.url === selectedImage);
 
   return (
     <div className="flex flex-col h-full">
@@ -127,7 +83,9 @@ export default function ImageGallery() {
       </div>
 
       <ScrollArea className="flex-1 p-4">
-        {selectedImage ? (
+        {loading ? (
+          <p className="text-center text-muted-foreground">Loading images...</p>
+        ) : selectedImage && selectedImgData ? (
           <div className="flex flex-col items-center">
             <div className="relative w-full max-w-3xl">
               <Button
@@ -138,25 +96,16 @@ export default function ImageGallery() {
               >
                 <X className="h-4 w-4" />
               </Button>
-              <Image
-                src={images.find((img) => img.id === selectedImage)?.url || ""}
-                alt="Selected image"
-                width={800}
-                height={600}
-                className="rounded-lg object-contain"
+              <img
+                src={selectedImgData.url}
+                alt={selectedImgData.name}
+                className="object-cover w-full h-full rounded-lg"
               />
             </div>
             <div className="mt-4 text-center">
-              <h3 className="text-lg font-medium">
-                {images.find((img) => img.id === selectedImage)?.name}
-              </h3>
-              {images.find((img) => img.id === selectedImage)?.group && (
-                <p className="text-sm text-muted-foreground">
-                  Group: {images.find((img) => img.id === selectedImage)?.group}
-                </p>
-              )}
+              <h3 className="text-lg font-medium">{selectedImgData.name}</h3>
               <p className="text-sm text-muted-foreground">
-                Added: {images.find((img) => img.id === selectedImage)?.date}
+                Added: {selectedImgData.date}
               </p>
             </div>
           </div>
@@ -165,24 +114,21 @@ export default function ImageGallery() {
             {filteredImages.length > 0 ? (
               filteredImages.map((image) => (
                 <div
-                  key={image.id}
+                  key={image.key}
                   className="group relative aspect-square overflow-hidden rounded-lg border bg-background cursor-pointer"
-                  onClick={() => setSelectedImage(image.id)}
+                  onClick={() => setSelectedImage(image.url)}
                 >
-                  <Image
-                    src={image.url || "/placeholder.svg"}
+                  <img
+                    src={image.url}
                     alt={image.name}
-                    fill
-                    className="object-cover transition-all group-hover:scale-105"
+                    className="object-cover w-full h-full rounded-lg transition-all group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-black/40 opacity-0 transition-opacity group-hover:opacity-100" />
                   <div className="absolute bottom-0 left-0 right-0 p-2 text-white opacity-0 transition-opacity group-hover:opacity-100">
                     <p className="text-sm font-medium truncate">{image.name}</p>
-                    {image.group && (
-                      <p className="text-xs truncate opacity-80">
-                        {image.group}
-                      </p>
-                    )}
+                    <p className="text-xs truncate opacity-80">
+                      Added: {image.date}
+                    </p>
                   </div>
                 </div>
               ))
@@ -199,11 +145,7 @@ export default function ImageGallery() {
         )}
       </ScrollArea>
 
-      <UploadDialog
-        open={isUploadOpen}
-        onOpenChange={setIsUploadOpen}
-        onUpload={addImage}
-      />
+      <UploadDialog open={isUploadOpen} onOpenChange={setIsUploadOpen} />
     </div>
   );
 }
