@@ -6,6 +6,14 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import CreateGroupDialog from "./CreateGroupDialog";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 import { useEffect, useState } from "react";
 import { setCookie, getCookie } from "cookies-next";
 
@@ -31,6 +39,8 @@ export default function Sidebar({
 }: SidebarProps) {
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
+  const [alertOpen, setAlertOpen] = useState(false);
+  const [duplicateGroupName, setDuplicateGroupName] = useState("");
 
   // Load selected group from cookies on mount
   useEffect(() => {
@@ -47,14 +57,25 @@ export default function Sidebar({
     if (id) {
       setCookie("selectedGroup", id, {
         path: "/",
-        maxAge: 60 * 60 * 24 * 7, // Store for 7 days
+        maxAge: 60 * 60 * 24 * 7,
       });
     } else {
-      setCookie("selectedGroup", "", { path: "/", maxAge: 0 }); // Clear cookie if null
+      setCookie("selectedGroup", "", { path: "/", maxAge: 0 });
     }
   };
 
   const addGroup = async (name: string) => {
+    // Check if group name already exists (case-insensitive)
+    const exists = groups.some(
+      (group) => group.name.toLowerCase() === name.toLowerCase()
+    );
+
+    if (exists) {
+      setDuplicateGroupName(name);
+      setAlertOpen(true);
+      return;
+    }
+
     try {
       setCreateLoading(true);
       const response = await fetch("/api/user-groups", {
@@ -124,6 +145,25 @@ export default function Sidebar({
         onOpenChange={setIsCreateGroupOpen}
         onCreateGroup={addGroup}
       />
+
+      {/* Alert Dialog for Duplicate Group Name */}
+      <AlertDialog open={alertOpen} onOpenChange={setAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogTitle>Group Already Exists</AlertDialogTitle>
+          <AlertDialogDescription>
+            A group with the name <b>{duplicateGroupName}</b> already exists.
+            Please choose a different name.
+          </AlertDialogDescription>
+          <div className="flex justify-end space-x-2">
+            <AlertDialogCancel onClick={() => setAlertOpen(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => setAlertOpen(false)}>
+              OK
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
