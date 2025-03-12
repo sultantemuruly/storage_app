@@ -1,13 +1,13 @@
 "use client";
 
 import { Grid, Image, Plus, Loader } from "lucide-react";
-
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import CreateGroupDialog from "./CreateGroupDialog";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { setCookie, getCookie } from "cookies-next";
 
 interface Group {
   id: string;
@@ -32,14 +32,34 @@ export default function Sidebar({
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const [createLoading, setCreateLoading] = useState(false);
 
+  // Load selected group from cookies on mount
+  useEffect(() => {
+    const storedGroupId = getCookie("selectedGroup");
+
+    if (storedGroupId && groups.some((group) => group.id === storedGroupId)) {
+      setSelectedGroup(storedGroupId as string);
+    }
+  }, [groups]);
+
+  const handleSelectGroup = (id: string | null) => {
+    setSelectedGroup(id);
+
+    if (id) {
+      setCookie("selectedGroup", id, {
+        path: "/",
+        maxAge: 60 * 60 * 24 * 7, // Store for 7 days
+      });
+    } else {
+      setCookie("selectedGroup", "", { path: "/", maxAge: 0 }); // Clear cookie if null
+    }
+  };
+
   const addGroup = async (name: string) => {
     try {
       setCreateLoading(true);
       const response = await fetch("/api/user-groups", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name }),
       });
 
@@ -48,20 +68,17 @@ export default function Sidebar({
       }
 
       const data = await response.json();
-
-      if (!data || !data.group || typeof data.group !== "object") {
+      if (!data?.group || typeof data.group !== "object") {
         throw new Error("Invalid API response structure");
       }
 
-      // Ensure `data.group` has required fields with fallbacks
       const newGroup: Group = {
         id: data.group.id || "unknown-id",
         name: data.group.name || "Unnamed Group",
       };
 
-      // Update groups using the passed setter function
       setGroups((prevGroups) => [...prevGroups, newGroup]);
-      setSelectedGroup(newGroup.id);
+      handleSelectGroup(newGroup.id);
     } catch (error) {
       console.error("Error adding group:", error);
     } finally {
@@ -83,7 +100,7 @@ export default function Sidebar({
             <SidebarContent
               groups={groups}
               selectedGroup={selectedGroup}
-              setSelectedGroup={setSelectedGroup}
+              setSelectedGroup={handleSelectGroup}
               onCreateGroup={() => setIsCreateGroupOpen(true)}
               loading={loading || createLoading}
             />
@@ -96,7 +113,7 @@ export default function Sidebar({
         <SidebarContent
           groups={groups}
           selectedGroup={selectedGroup}
-          setSelectedGroup={setSelectedGroup}
+          setSelectedGroup={handleSelectGroup}
           onCreateGroup={() => setIsCreateGroupOpen(true)}
           loading={loading || createLoading}
         />

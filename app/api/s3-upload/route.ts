@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 
 type UploadFileParams = {
@@ -16,14 +16,22 @@ const s3Client = new S3Client({
   },
 });
 
-async function uploadFileToS3(file: Buffer, fileName: string): Promise<string> {
+async function uploadFileToS3(
+  file: Buffer,
+  fileName: string,
+  groupId: string
+): Promise<string> {
   if (!process.env.AWS_S3_BUCKET_NAME) {
     throw new Error("AWS S3 Bucket name is not defined");
   }
 
+  if (!groupId) {
+    throw new Error("Group ID is required");
+  }
+
   const params: UploadFileParams = {
     Bucket: process.env.AWS_S3_BUCKET_NAME,
-    Key: `imagegroup1/${fileName}`,
+    Key: `images/group/${groupId}/filename/${fileName}`,
     Body: file,
     ContentType: "image/jpg",
   };
@@ -38,23 +46,38 @@ async function uploadFileToS3(file: Buffer, fileName: string): Promise<string> {
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const file = formData.get("file");
 
-    // Type guard to ensure file is a File
+    // Retrieve the group ID directly from cookies (no decoding needed)
+    const cookieHeader = req.headers.get("cookie");
+    const groupId =
+      cookieHeader
+        ?.split("; ")
+        .find((c) => c.startsWith("selectedGroup="))
+        ?.split("=")[1] || "";
+
+    if (!groupId) {
+      return NextResponse.json(
+        { error: "Group ID is missing or invalid" },
+        { status: 400 }
+      );
+    }
+
+    console.log("Group ID:", groupId);
+
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "File is required" }, { status: 400 });
     }
 
-    // Validate file type
     if (!file.type.startsWith("image/")) {
       return NextResponse.json({ error: "Invalid file type" }, { status: 400 });
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const fileName = await uploadFileToS3(buffer, file.name);
+    const fileName = await uploadFileToS3(buffer, file.name, groupId);
 
     return NextResponse.json({
       success: true,

@@ -203,12 +203,6 @@ export default function ImageGallery() {
         open={isUploadOpen}
         onOpenChange={setIsUploadOpen}
         onUpload={addImage}
-        groups={[
-          { id: "1", name: "Vacation" },
-          { id: "2", name: "Work" },
-          { id: "3", name: "Family" },
-          { id: "4", name: "Projects" },
-        ]}
       />
     </div>
   );
