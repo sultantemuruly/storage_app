@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { ImagePlus, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +15,7 @@ interface ImageItem {
   key: string;
 }
 
-export default function ImageGallery() {
+export default function ImageGallery({ groupId }: { groupId: string }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -27,7 +26,9 @@ export default function ImageGallery() {
   useEffect(() => {
     async function fetchImages() {
       try {
-        const response = await fetch(`/api/s3-retrieve?path=images/`);
+        const response = await fetch(
+          `/api/s3-retrieve?path=images/group/${groupId}`
+        );
         const data = await response.json();
 
         if (!response.ok) {
@@ -44,7 +45,7 @@ export default function ImageGallery() {
     }
 
     fetchImages();
-  }, [isUploadOpen]); // Refetch images after upload
+  }, [groupId, isUploadOpen]); // Refetch images after upload
 
   const filteredImages = images.filter((image) =>
     image.name.toLowerCase().includes(searchQuery.toLowerCase())

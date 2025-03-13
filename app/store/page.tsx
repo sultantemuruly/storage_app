@@ -62,7 +62,7 @@ export default function Store() {
             setGroups={setGroups}
           />
           <main className="flex-1 overflow-auto">
-            <ImageGallery />
+            {selectedGroup && <ImageGallery groupId={selectedGroup} />}
           </main>
         </div>
       ) : (
