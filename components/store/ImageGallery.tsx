@@ -61,7 +61,7 @@ export default function ImageGallery({ groupId }: { groupId: string }) {
           <Input
             type="search"
             placeholder="Search images..."
-            className="pl-8"
+            className="pl-8 [&::-webkit-search-cancel-button]:hidden"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -116,19 +116,35 @@ export default function ImageGallery({ groupId }: { groupId: string }) {
               filteredImages.map((image) => (
                 <div
                   key={image.key}
-                  className="group relative aspect-square overflow-hidden rounded-lg border bg-background cursor-pointer"
+                  className="flex flex-col items-center cursor-pointer group"
                   onClick={() => setSelectedImage(image.url)}
                 >
-                  <img
-                    src={image.url}
-                    alt={image.name}
-                    className="object-cover w-full h-full rounded-lg transition-all group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 transition-opacity group-hover:opacity-100" />
-                  <div className="absolute bottom-0 left-0 right-0 p-2 text-white opacity-0 transition-opacity group-hover:opacity-100">
-                    <p className="text-sm font-medium truncate">{image.name}</p>
-                    <p className="text-xs truncate opacity-80">
-                      Added: {image.date}
+                  {/* Image Wrapper */}
+                  <div className="relative w-full aspect-square overflow-hidden rounded-lg">
+                    <img
+                      src={image.url}
+                      alt={image.name}
+                      className="object-cover w-full h-full rounded-lg transition-all duration-300 ease-in-out group-hover:brightness-75"
+                    />
+
+                    {/* Dark overlay on hover */}
+                    <div className="absolute inset-0 bg-black/40 opacity-0 transition-opacity duration-300 ease-in-out group-hover:opacity-100" />
+
+                    {/* White text appearing on hover */}
+                    <div className="absolute bottom-0 left-0 right-0 p-2 text-white opacity-0 transition-opacity duration-300 ease-in-out group-hover:opacity-100">
+                      <p className="text-sm font-medium truncate">
+                        {image.name}
+                      </p>
+                      <p className="text-xs truncate opacity-80">
+                        Added: {image.date}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Black text (visible initially, disappears on hover) */}
+                  <div className="w-full text-center transition-opacity duration-300 ease-in-out group-hover:opacity-0">
+                    <p className="mt-2 text-sm font-medium text-black">
+                      {image.name}
                     </p>
                   </div>
                 </div>
