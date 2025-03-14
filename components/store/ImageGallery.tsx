@@ -158,10 +158,29 @@ export default function ImageGallery({ groupId }: { groupId: string }) {
           )}
         </div>
         <div className="flex gap-1">
-          <Button variant="destructive" onClick={handleGroupDelete}>
-            <Trash2 className="mr-1 h-4 w-4" />
-            Delete Group
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive">
+                <Trash2 className="mr-1 h-4 w-4" />
+                Delete Group
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Confirm Group Deletion</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete this group? This action cannot
+                  be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleGroupDelete}>
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           <Button onClick={() => {}}>
             <ImagePlus className="mr-1 h-4 w-4" />
