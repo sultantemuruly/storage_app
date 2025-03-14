@@ -28,11 +28,13 @@ import {
 interface UploadDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  groupId?: string; // Added optional groupId prop
 }
 
 export default function UploadDialog({
   open,
   onOpenChange,
+  groupId, // Add groupId to the destructured props
 }: UploadDialogProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -42,12 +44,14 @@ export default function UploadDialog({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load existing files from S3 on component mount
+  // Load existing files from S3 on component mount - updated to use groupId if available
   useEffect(() => {
     if (open) {
       const fetchUploadedFiles = async () => {
         try {
-          const response = await fetch("/api/s3-retrieve?path=images/");
+          // Use groupId in the path if available
+          const path = groupId ? `images/group/${groupId}` : "images/";
+          const response = await fetch(`/api/s3-retrieve?path=${path}`);
           const data = await response.json();
 
           if (data.images && Array.isArray(data.images)) {
@@ -69,7 +73,7 @@ export default function UploadDialog({
 
       fetchUploadedFiles();
     }
-  }, [open]);
+  }, [open, groupId]); // Added groupId to dependencies
 
   const checkDuplicate = (fileName: string): boolean =>
     uploadedFiles.has(fileName);
@@ -109,6 +113,11 @@ export default function UploadDialog({
 
     const formData = new FormData();
     formData.append("file", file);
+
+    // Add groupId to formData if available
+    if (groupId) {
+      formData.append("groupId", groupId);
+    }
 
     try {
       const response = await fetch("/api/s3-upload", {
@@ -171,7 +180,8 @@ export default function UploadDialog({
             <DialogHeader>
               <DialogTitle>Upload image</DialogTitle>
               <DialogDescription>
-                Upload a new image to your storage.
+                Upload a new image{" "}
+                {groupId ? "to this group" : "to your storage"}.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
