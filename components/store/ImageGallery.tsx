@@ -66,7 +66,6 @@ export default function ImageGallery({ groupId }: { groupId: string }) {
 
   const handleImageDelete = async ({ filePath }: { filePath: string }) => {
     try {
-      // Send delete request to your API endpoint
       const response = await fetch("/api/s3-delete", {
         method: "DELETE",
         headers: {
@@ -86,6 +85,51 @@ export default function ImageGallery({ groupId }: { groupId: string }) {
     } catch (error) {
       console.error("Error deleting image:", error);
       toast.error("Failed to delete image. Please try again.");
+    }
+  };
+
+  const handleGroupDelete = async () => {
+    if (!groupId) {
+      toast.error("Group ID is missing.");
+      return;
+    }
+
+    try {
+      // Delete the group from the database
+      const groupDeleteResponse = await fetch(`/api/user-groups`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ groupId }),
+      });
+
+      if (!groupDeleteResponse.ok) {
+        const errorData = await groupDeleteResponse.json();
+        throw new Error(errorData.message || "Failed to delete group.");
+      }
+
+      // Delete associated image from S3
+      if (images.length > 0) {
+        const imageDeleteResponse = await fetch(`/api/s3-delete`, {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ filePath: `images/group/${groupId}` }),
+        });
+
+        if (!imageDeleteResponse.ok) {
+          const errorData = await imageDeleteResponse.json();
+          throw new Error(errorData.message || "Failed to delete group image.");
+        }
+      }
+
+      toast.success("Group and associated image deleted successfully.");
+      window.location.reload();
+    } catch (error) {
+      console.error("Error deleting group:", error);
+      toast.error("An error occurred while deleting the group.");
     }
   };
 
@@ -113,10 +157,17 @@ export default function ImageGallery({ groupId }: { groupId: string }) {
             </Button>
           )}
         </div>
-        <Button onClick={() => setIsUploadOpen(true)}>
-          <ImagePlus className="mr-2 h-4 w-4" />
-          Upload
-        </Button>
+        <div className="flex gap-1">
+          <Button variant="destructive" onClick={handleGroupDelete}>
+            <Trash2 className="mr-1 h-4 w-4" />
+            Delete Group
+          </Button>
+
+          <Button onClick={() => {}}>
+            <ImagePlus className="mr-1 h-4 w-4" />
+            Upload
+          </Button>
+        </div>
       </div>
 
       <ScrollArea className="flex-1 p-4">
