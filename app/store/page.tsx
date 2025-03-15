@@ -23,7 +23,7 @@ export default function Store() {
       if (!isLoaded || !user) return;
 
       try {
-        const res = await fetch("/api/user-groups");
+        const res = await fetch("/api/user-groups/fetch-groups");
         if (res.ok) {
           const data = await res.json();
           setGroups(data.groups);

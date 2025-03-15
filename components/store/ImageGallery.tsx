@@ -89,7 +89,7 @@ export default function ImageGallery({ groupId }: { groupId: string }) {
       const groupIdToDelete = groupId;
 
       // First delete the group from the database
-      const groupDeleteResponse = await fetch(`/api/user-groups`, {
+      const groupDeleteResponse = await fetch(`/api/user-groups/delete-group`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",

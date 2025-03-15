@@ -78,7 +78,7 @@ export default function Sidebar({
 
     try {
       setCreateLoading(true);
-      const response = await fetch("/api/user-groups", {
+      const response = await fetch("/api/user-groups/create-group", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name }),
