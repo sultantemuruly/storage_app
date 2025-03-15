@@ -1,4 +1,3 @@
-// components/ImageGallery.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -86,12 +85,16 @@ export default function ImageGallery({ groupId }: { groupId: string }) {
     }
 
     try {
+      // Store the groupId before deleting it from the database
+      const groupIdToDelete = groupId;
+
+      // First delete the group from the database
       const groupDeleteResponse = await fetch(`/api/user-groups`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ groupId }),
+        body: JSON.stringify({ groupId: groupIdToDelete }),
       });
 
       if (!groupDeleteResponse.ok) {
@@ -99,13 +102,14 @@ export default function ImageGallery({ groupId }: { groupId: string }) {
         throw new Error(errorData.message || "Failed to delete group.");
       }
 
+      // Only call S3 delete if images exist
       if (images.length > 0) {
         const imageDeleteResponse = await fetch(`/api/s3-delete`, {
           method: "DELETE",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ filePath: `images/group/${groupId}` }),
+          body: JSON.stringify({ groupId: groupIdToDelete }), // Pass correct parameter
         });
 
         if (!imageDeleteResponse.ok) {
