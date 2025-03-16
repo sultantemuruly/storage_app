@@ -37,7 +37,7 @@ export default function InitialGroupCreate({
   const addGroup = async (name: string) => {
     try {
       setLoading(true);
-      const response = await fetch("/api/user-groups", {
+      const response = await fetch("/api/user-groups/create-group", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -1,0 +1,3 @@
+{
+  "/api/s3-retrieve/route": "app/api/s3-retrieve/route.js"
+}

@@ -44,14 +44,18 @@ export default function UploadDialog({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const image_service_url = process.env.NEXT_PUBLIC_IMAGE_SERVICE_URL;
+
   // Load existing files from S3 on component mount - updated to use groupId if available
   useEffect(() => {
     if (open) {
       const fetchUploadedFiles = async () => {
         try {
           // Use groupId in the path if available
-          const path = groupId ? `images/group/${groupId}` : "images/";
-          const response = await fetch(`/api/s3-retrieve?path=${path}`);
+          const path = groupId ? `/images/group/${groupId}` : "images/";
+          const response = await fetch(
+            `${image_service_url}/api/s3-retrieve?path=${path}`
+          );
           const data = await response.json();
 
           if (data.images && Array.isArray(data.images)) {
@@ -120,7 +124,7 @@ export default function UploadDialog({
     }
 
     try {
-      const response = await fetch("/api/s3-upload", {
+      const response = await fetch(`${image_service_url}/api/s3-upload`, {
         method: "POST",
         body: formData,
       });

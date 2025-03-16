@@ -26,6 +26,7 @@ export default function Store() {
         const res = await fetch("/api/user-groups/fetch-groups");
         if (res.ok) {
           const data = await res.json();
+          console.log(data);
           setGroups(data.groups);
 
           // Select the first group by default if it exists

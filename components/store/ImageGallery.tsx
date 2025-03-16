@@ -25,10 +25,12 @@ export default function ImageGallery({ groupId }: { groupId: string }) {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const image_service_url = process.env.NEXT_PUBLIC_IMAGE_SERVICE_URL;
+
   async function fetchImages() {
     try {
       const response = await fetch(
-        `/api/s3-retrieve?path=images/group/${groupId}`
+        `${image_service_url}/api/s3-retrieve?path=images/group/${groupId}`
       );
       const data = await response.json();
 
@@ -36,6 +38,9 @@ export default function ImageGallery({ groupId }: { groupId: string }) {
         throw new Error(data.error || "Failed to load images.");
       }
 
+      console.log(
+        `${image_service_url}/api/s3-retrieve?path=images/group/${groupId}`
+      );
       setImages(data.images);
     } catch (error) {
       console.error("Error fetching images:", error);
@@ -57,7 +62,7 @@ export default function ImageGallery({ groupId }: { groupId: string }) {
 
   const handleImageDelete = async (filePath: string) => {
     try {
-      const response = await fetch("/api/s3-delete", {
+      const response = await fetch(`${image_service_url}/api/s3-delete`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -104,13 +109,16 @@ export default function ImageGallery({ groupId }: { groupId: string }) {
 
       // Only call S3 delete if images exist
       if (images.length > 0) {
-        const imageDeleteResponse = await fetch(`/api/s3-delete`, {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ groupId: groupIdToDelete }), // Pass correct parameter
-        });
+        const imageDeleteResponse = await fetch(
+          `${image_service_url}/api/s3-delete`,
+          {
+            method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ groupId: groupIdToDelete }), // Pass correct parameter
+          }
+        );
 
         if (!imageDeleteResponse.ok) {
           const errorData = await imageDeleteResponse.json();
