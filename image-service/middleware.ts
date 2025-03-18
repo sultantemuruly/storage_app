@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export function middleware(req: NextRequest) {
-  console.log(req);
+  console.log("Incoming request:", {
+    method: req.method,
+    url: req.nextUrl.pathname,
+    headers: Object.fromEntries(req.headers.entries()),
+  });
+
   const response = NextResponse.next();
 
-  const allowedOrigin = process.env.FRONTEND_URL || "http://localhost:3000";
-
-  response.headers.set("Access-Control-Allow-Origin", allowedOrigin);
+  response.headers.set("Access-Control-Allow-Origin", "*"); // Allow all origins
   response.headers.set(
     "Access-Control-Allow-Methods",
     "GET, POST, DELETE, OPTIONS"
@@ -15,9 +18,10 @@ export function middleware(req: NextRequest) {
 
   // Handle preflight requests
   if (req.method === "OPTIONS") {
+    console.log("Handling preflight request");
     return new Response(null, {
       headers: {
-        "Access-Control-Allow-Origin": allowedOrigin,
+        "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type",
       },
@@ -25,6 +29,10 @@ export function middleware(req: NextRequest) {
     });
   }
 
+  console.log(
+    "Response headers set:",
+    Object.fromEntries(response.headers.entries())
+  );
   return response;
 }
 
