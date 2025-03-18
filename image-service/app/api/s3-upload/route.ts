@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
 
     const params = {
       Bucket: process.env.AWS_S3_BUCKET_NAME!,
-      Key: `images/group/${groupId}/${fileName}`,
+      Key: `images/group/${groupId}/filename/${fileName}`,
       Body: buffer,
       ContentType: file.type,
     };

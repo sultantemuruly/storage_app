@@ -37,7 +37,7 @@ export default function ImageGallery({ groupId }: { groupId: string }) {
       }
 
       const response = await fetch(
-        `${image_service_url}/api/s3-retrieve?path=images/group/${groupId}`
+        `${image_service_url}/api/s3-retrieve?path=images/group/${groupId}/filename`
       );
       const data = await response.json();
 
