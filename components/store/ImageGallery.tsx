@@ -29,6 +29,13 @@ export default function ImageGallery({ groupId }: { groupId: string }) {
 
   async function fetchImages() {
     try {
+      if (!groupId) {
+        console.error("Group ID is missing");
+        toast.error("Cannot load images: Group ID is missing");
+        setLoading(false);
+        return;
+      }
+
       const response = await fetch(
         `${image_service_url}/api/s3-retrieve?path=images/group/${groupId}`
       );
@@ -38,9 +45,6 @@ export default function ImageGallery({ groupId }: { groupId: string }) {
         throw new Error(data.error || "Failed to load images.");
       }
 
-      console.log(
-        `${image_service_url}/api/s3-retrieve?path=images/group/${groupId}`
-      );
       setImages(data.images);
     } catch (error) {
       console.error("Error fetching images:", error);
@@ -62,21 +66,26 @@ export default function ImageGallery({ groupId }: { groupId: string }) {
 
   const handleImageDelete = async (filePath: string) => {
     try {
+      if (!groupId) {
+        toast.error("Deletion failed: Group ID is missing.");
+        return;
+      }
+
       const response = await fetch(`${image_service_url}/api/s3-delete`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ filePath }),
+        body: JSON.stringify({ filePath, groupId }), // Include groupId explicitly
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to delete image");
+        throw new Error(errorData.error || "Failed to delete image");
       }
 
       toast.success("Image deleted successfully");
-      await fetchImages();
+      await fetchImages(); // Refresh images after deletion
     } catch (error) {
       console.error("Error deleting image:", error);
       toast.error("Failed to delete image. Please try again.");

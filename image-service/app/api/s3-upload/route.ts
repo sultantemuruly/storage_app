@@ -20,20 +20,19 @@ export async function POST(req: NextRequest) {
 
     const formData = await req.formData();
     const file = formData.get("file");
+    const groupId = formData.get("groupId") as string; // Extract groupId from FormData
 
-    if (!file || !(file instanceof Blob)) {
-      console.error("❌ File is missing or invalid");
-      return NextResponse.json({ error: "File is required" }, { status: 400 });
-    }
-
-    // Extract group ID from cookie
-    const groupId = req.cookies.get("selectedGroup")?.value;
     if (!groupId) {
-      console.error("❌ Group ID is missing");
+      console.error("Group ID is missing");
       return NextResponse.json(
         { error: "Group ID is required" },
         { status: 400 }
       );
+    }
+
+    if (!file || !(file instanceof Blob)) {
+      console.error("File is missing or invalid");
+      return NextResponse.json({ error: "File is required" }, { status: 400 });
     }
 
     // Convert file to Buffer
@@ -47,17 +46,20 @@ export async function POST(req: NextRequest) {
       ContentType: file.type,
     };
 
-    console.log("Uploading file:", params.Key);
+    console.log(`Uploading file: ${params.Key} to S3...`);
 
     // Upload file to S3
     const command = new PutObjectCommand(params);
     await s3Client.send(command);
 
-    console.log("✅ Upload successful");
+    console.log("Upload successful!");
 
     return NextResponse.json({ success: true, fileName });
   } catch (error) {
     console.error("S3 Upload Error:", error);
-    return NextResponse.json({ error: "File upload failed" }, { status: 500 });
+    return NextResponse.json(
+      { error: "File upload failed", details: error },
+      { status: 500 }
+    );
   }
 }

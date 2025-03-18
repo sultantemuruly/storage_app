@@ -6,70 +6,47 @@ import {
 } from "@aws-sdk/client-s3";
 
 const s3Client = new S3Client({
-  region: process.env.AWS_S3_REGION as string,
+  region: process.env.AWS_S3_REGION!,
   credentials: {
-    accessKeyId: process.env.AWS_S3_ACCESS_KEY_ID as string,
-    secretAccessKey: process.env.AWS_S3_SECRET_ACCESS_KEY as string,
+    accessKeyId: process.env.AWS_S3_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_S3_SECRET_ACCESS_KEY!,
   },
 });
 
-async function deleteFilesFromS3(prefix: string): Promise<void> {
-  const bucketName = process.env.AWS_S3_BUCKET_NAME;
+// Helper function to delete files from S3
+async function deleteFilesFromS3(keys: string[]) {
+  const bucketName = process.env.AWS_S3_BUCKET_NAME!;
   if (!bucketName) {
     throw new Error("AWS S3 Bucket name is not defined");
   }
 
-  let continuationToken: string | undefined = undefined;
+  if (keys.length === 0) {
+    console.warn("No files provided for deletion.");
+    return;
+  }
 
   try {
-    do {
-      // List objects (handles pagination)
-      const listCommand = new ListObjectsV2Command({
-        Bucket: bucketName,
-        Prefix: prefix,
-        ContinuationToken: continuationToken,
-      });
+    const deleteParams = {
+      Bucket: bucketName,
+      Delete: {
+        Objects: keys.map((key) => ({ Key: key })),
+      },
+    };
 
-      const listedObjects: {
-        Contents?: { Key?: string }[];
-        NextContinuationToken?: string;
-      } = await s3Client.send(listCommand);
+    console.log(`Deleting ${keys.length} file(s) from S3...`);
+    await s3Client.send(new DeleteObjectsCommand(deleteParams));
 
-      if (!listedObjects.Contents || listedObjects.Contents.length === 0) {
-        console.log(`No files found under prefix: ${prefix}`);
-        return;
-      }
-
-      // Prepare objects for deletion (handle potential undefined keys)
-      const deleteParams = {
-        Bucket: bucketName,
-        Delete: {
-          Objects: listedObjects.Contents?.map((obj) =>
-            obj.Key ? { Key: obj.Key } : null
-          ).filter(Boolean) as { Key: string }[],
-        },
-      };
-
-      if (deleteParams.Delete.Objects.length > 0) {
-        // Delete objects in bulk
-        const deleteCommand = new DeleteObjectsCommand(deleteParams);
-        await s3Client.send(deleteCommand);
-        console.log(
-          `Deleted ${deleteParams.Delete.Objects.length} files under prefix: ${prefix}`
-        );
-      }
-
-      continuationToken = listedObjects.NextContinuationToken ?? undefined;
-    } while (continuationToken);
+    console.log("Deletion successful.");
   } catch (error) {
     console.error("S3 Deletion Error:", error);
     throw error;
   }
 }
 
+// API Handler for DELETE request
 export async function DELETE(req: NextRequest) {
   try {
-    const { groupId } = await req.json();
+    const { groupId, filePath } = await req.json();
 
     if (!groupId) {
       return NextResponse.json(
@@ -78,21 +55,61 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    const prefix = `images/group/${groupId}/`;
+    const bucketName = process.env.AWS_S3_BUCKET_NAME!;
+    if (!bucketName) {
+      throw new Error("S3 Bucket name is not configured");
+    }
 
-    // Delete all files under the group folder
-    await deleteFilesFromS3(prefix);
+    if (filePath) {
+      // Delete a single file
+      await deleteFilesFromS3([filePath]);
+      return NextResponse.json({
+        success: true,
+        message: `File deleted: ${filePath}`,
+      });
+    } else {
+      // Delete all files in the group folder
+      const prefix = `images/group/${groupId}/`;
+      let continuationToken: string | undefined = undefined;
 
-    return NextResponse.json({
-      success: true,
-      message: `All files under ${prefix} have been deleted.`,
-    });
+      let allKeys: Array<string> = [];
+
+      do {
+        const listCommand = new ListObjectsV2Command({
+          Bucket: bucketName,
+          Prefix: prefix,
+          ContinuationToken: continuationToken,
+        });
+
+        const listedObjects: {
+          Contents?: { Key?: string }[];
+          NextContinuationToken?: string;
+        } = await s3Client.send(listCommand);
+
+        if (listedObjects.Contents && listedObjects.Contents.length > 0) {
+          const fileKeys: string[] = listedObjects.Contents.map(
+            (obj) => obj.Key || ""
+          ).filter((key) => key !== ""); // Remove empty keys
+
+          allKeys = [...allKeys, ...fileKeys];
+        }
+
+        continuationToken = listedObjects.NextContinuationToken ?? undefined;
+      } while (continuationToken);
+
+      if (allKeys.length > 0) {
+        await deleteFilesFromS3(allKeys);
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `All files under ${prefix} have been deleted.`,
+      });
+    }
   } catch (error) {
     console.error("Deletion Error:", error);
     return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
+      { error: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }

@@ -51,11 +51,21 @@ export default function UploadDialog({
     if (open) {
       const fetchUploadedFiles = async () => {
         try {
-          // Use groupId in the path if available
-          const path = groupId ? `/images/group/${groupId}` : "images/";
+          const path = groupId ? `images/group/${groupId}` : "images/";
+
+          if (!image_service_url) {
+            console.error("Image service URL is not defined");
+            return;
+          }
+
           const response = await fetch(
             `${image_service_url}/api/s3-retrieve?path=${path}`
           );
+
+          if (!response.ok) {
+            throw new Error(`Server responded with status: ${response.status}`);
+          }
+
           const data = await response.json();
 
           if (data.images && Array.isArray(data.images)) {
@@ -118,19 +128,31 @@ export default function UploadDialog({
     const formData = new FormData();
     formData.append("file", file);
 
-    // Add groupId to formData if available
+    // Ensure groupId is included
     if (groupId) {
       formData.append("groupId", groupId);
+    } else {
+      toast.error("Upload failed: Group ID is missing.");
+      setUploading(false);
+      return;
     }
 
     try {
+      if (!image_service_url) {
+        console.error("Image service URL is not defined");
+        toast.error("Upload failed. Service unavailable.");
+        setUploading(false);
+        return;
+      }
+
       const response = await fetch(`${image_service_url}/api/s3-upload`, {
         method: "POST",
         body: formData,
       });
 
       if (!response.ok) {
-        throw new Error("Failed to upload file");
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to upload file");
       }
 
       toast.success("File uploaded successfully!", {
@@ -148,10 +170,8 @@ export default function UploadDialog({
         window.location.reload();
       }, 1500);
     } catch (error) {
-      toast.error("Upload failed. Please try again.", {
-        description: "There was an error uploading your file.",
-      });
-      console.error(error);
+      console.error("Upload Error:", error);
+      toast.error("Upload failed. Please try again.");
     } finally {
       setUploading(false);
     }
