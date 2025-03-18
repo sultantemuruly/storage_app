@@ -4,12 +4,10 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - IMAGE_SERVICE_URL=http://image-service:3001
-    depends_on:
-      - image-service
+      - IMAGE_SERVICE_URL=${IMAGE_SERVICE_URL}
     env_file:
       - .env
-
+  
   image-service:
     build: ./image-service
     ports:
