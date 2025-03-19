@@ -10,6 +10,7 @@ import { SearchBar } from "./gallery/SearchBar";
 import { ImageGrid } from "./gallery/ImageGrid";
 import { ImageDetail } from "./gallery/ImageDetail";
 import { DeleteGroupDialog } from "./gallery/DeleteGroupDialog";
+import WarningBanner from "./gallery/WarningBanner";
 
 interface ImageItem {
   url: string;
@@ -39,6 +40,7 @@ export default function ImageGallery({ groupId }: { groupId: string }) {
       const response = await fetch(
         `${image_service_url}/api/s3-retrieve?path=images/group/${groupId}/filename`
       );
+
       const data = await response.json();
 
       if (!response.ok) {
@@ -154,6 +156,10 @@ export default function ImageGallery({ groupId }: { groupId: string }) {
             Upload
           </Button>
         </div>
+      </div>
+
+      <div>
+        <WarningBanner />
       </div>
 
       <ScrollArea className="flex-1 p-4">
