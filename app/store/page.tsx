@@ -42,7 +42,7 @@ export default function Store() {
     };
 
     fetchGroups();
-  }, [isLoaded, user?.id]);
+  }, [isLoaded, user, user?.id]);
 
   if (!isLoaded || loading) {
     return (
